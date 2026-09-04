@@ -1,4 +1,11 @@
 // ========================================
+// JOBFINDER FRONTEND
+// INTERNATIONAL REMOTE JOBS
+// NIGERIANS CAN WORK FROM NIGERIA
+// ========================================
+
+
+// ========================================
 // BACKEND CONNECTION
 // ========================================
 
@@ -40,6 +47,327 @@ let currentFilter = "all";
 
 
 // ========================================
+// API REQUEST
+// ========================================
+
+async function fetchJobs() {
+
+  const search =
+    searchInput?.value.trim() || "";
+
+  const location =
+    locationInput?.value.trim() || "";
+
+
+  const params =
+    new URLSearchParams();
+
+
+  // Search
+  if (search) {
+
+    params.set(
+      "search",
+      search
+    );
+
+  }
+
+
+  // IMPORTANT:
+  // Backend already returns fully remote
+  // Nigeria-eligible international jobs.
+  //
+  // We only send the search term here.
+  //
+  // This prevents the frontend from accidentally
+  // filtering out valid international jobs.
+
+
+  const url =
+    `${API_URL}/api/jobs/remote${
+      params.toString()
+        ? `?${params.toString()}`
+        : ""
+    }`;
+
+
+  console.log(
+    "Loading jobs from:",
+    url
+  );
+
+
+  const response =
+    await fetch(
+      url,
+      {
+        method: "GET",
+
+        headers: {
+          "Accept":
+            "application/json"
+        },
+
+        cache: "no-store"
+      }
+    );
+
+
+  if (!response.ok) {
+
+    throw new Error(
+      `Server returned ${response.status}`
+    );
+
+  }
+
+
+  const data =
+    await response.json();
+
+
+  console.log(
+    "Jobs API response:",
+    data
+  );
+
+
+  if (!data.success) {
+
+    throw new Error(
+      data.message ||
+      data.error ||
+      "Job server returned an error."
+    );
+
+  }
+
+
+  let jobs =
+    Array.isArray(data.jobs)
+      ? data.jobs
+      : [];
+
+
+  // ========================================
+  // FRONTEND LOCATION SEARCH
+  // ========================================
+
+  if (location) {
+
+    const locationSearch =
+      location.toLowerCase();
+
+
+    jobs =
+      jobs.filter(job => {
+
+        const jobLocation =
+          String(
+            job.location ||
+            ""
+          ).toLowerCase();
+
+
+        const restrictions =
+          Array.isArray(
+            job.locationRestrictions
+          )
+            ? job.locationRestrictions
+            : [];
+
+
+        const restrictionText =
+          restrictions
+            .map(item => {
+
+              return [
+                item?.name,
+                item?.alpha2,
+                item?.slug
+              ]
+                .filter(Boolean)
+                .join(" ");
+
+            })
+            .join(" ")
+            .toLowerCase();
+
+
+        const description =
+          String(
+            job.description ||
+            job.excerpt ||
+            ""
+          ).toLowerCase();
+
+
+        const company =
+          String(
+            job.company ||
+            ""
+          ).toLowerCase();
+
+
+        const title =
+          String(
+            job.title ||
+            ""
+          ).toLowerCase();
+
+
+        return (
+
+          jobLocation.includes(
+            locationSearch
+          ) ||
+
+          restrictionText.includes(
+            locationSearch
+          ) ||
+
+          description.includes(
+            locationSearch
+          ) ||
+
+          company.includes(
+            locationSearch
+          ) ||
+
+          title.includes(
+            locationSearch
+          )
+
+        );
+
+      });
+
+  }
+
+
+  // ========================================
+  // JOB TYPE FILTER
+  // ========================================
+
+  if (
+    currentFilter !== "all"
+  ) {
+
+    const filter =
+      currentFilter.toLowerCase();
+
+
+    jobs =
+      jobs.filter(job => {
+
+        const employmentType =
+          String(
+            job.employmentType ||
+            job.contract_type ||
+            job.contract_time ||
+            ""
+          ).toLowerCase();
+
+
+        const title =
+          String(
+            job.title ||
+            ""
+          ).toLowerCase();
+
+
+        const description =
+          String(
+            job.description ||
+            ""
+          ).toLowerCase();
+
+
+        const combined =
+          `${employmentType} ${title} ${description}`;
+
+
+        if (
+          filter === "full-time" ||
+          filter === "fulltime"
+        ) {
+
+          return (
+            combined.includes(
+              "full time"
+            ) ||
+
+            combined.includes(
+              "full-time"
+            )
+
+          );
+
+        }
+
+
+        if (
+          filter === "part-time" ||
+          filter === "parttime"
+        ) {
+
+          return (
+            combined.includes(
+              "part time"
+            ) ||
+
+            combined.includes(
+              "part-time"
+            )
+
+          );
+
+        }
+
+
+        if (
+          filter === "contract"
+        ) {
+
+          return combined.includes(
+            "contract"
+          );
+
+        }
+
+
+        if (
+          filter === "internship" ||
+          filter === "intern"
+        ) {
+
+          return (
+            combined.includes(
+              "intern"
+            )
+
+          );
+
+        }
+
+
+        return true;
+
+      });
+
+  }
+
+
+  return {
+    jobs,
+    apiData: data
+  };
+
+}
+
+
+// ========================================
 // LOAD JOBS
 // ========================================
 
@@ -47,223 +375,61 @@ async function loadJobs() {
 
   // Show loading
   if (loading) {
-    loading.classList.remove("hidden");
+
+    loading.classList.remove(
+      "hidden"
+    );
+
   }
 
+
+  // Hide empty state
   if (emptyState) {
-    emptyState.classList.add("hidden");
+
+    emptyState.classList.add(
+      "hidden"
+    );
+
   }
 
+
+  // Clear jobs
   if (jobsContainer) {
+
     jobsContainer.innerHTML = "";
+
   }
 
 
-  // ========================================
-  // SEARCH VALUE
-  // ========================================
+  // Loading text
+  if (jobCount) {
 
-  const search =
-    searchInput?.value.trim() || "";
+    jobCount.textContent =
+      "Loading jobs...";
 
-
-  const location =
-    locationInput?.value.trim() || "";
+  }
 
 
   try {
 
-    // ========================================
-    // BUILD API REQUEST
-    // ========================================
-
-    const params =
-      new URLSearchParams();
+    const result =
+      await fetchJobs();
 
 
-    // Search is optional
-    if (search) {
-
-      params.append(
-        "search",
-        search
-      );
-
-    }
+    const jobs =
+      result.jobs;
 
 
-    // Job type filter
-    if (
-      currentFilter !== "all"
-    ) {
-
-      params.append(
-        "type",
-        currentFilter
-      );
-
-    }
+    console.log(
+      "Jobs received:",
+      jobs.length
+    );
 
 
-    // ========================================
-    // CONNECT TO BACKEND
-    // ========================================
-
-    const response =
-      await fetch(
-        `${API_URL}/api/jobs?${params.toString()}`,
-        {
-          method: "GET",
-
-          headers: {
-            "Accept":
-              "application/json"
-          }
-        }
-      );
-
-
-    // ========================================
-    // CHECK SERVER RESPONSE
-    // ========================================
-
-    if (!response.ok) {
-
-      throw new Error(
-        `Server error: ${response.status}`
-      );
-
-    }
-
-
-    const data =
-      await response.json();
-
-
-    // ========================================
-    // CHECK API RESPONSE
-    // ========================================
-
-    if (!data.success) {
-
-      throw new Error(
-        data.message ||
-        data.error ||
-        "Unable to load jobs."
-      );
-
-    }
-
-
-    // ========================================
-    // GET JOBS
-    // ========================================
-
-    let jobs =
-      Array.isArray(data.jobs)
-        ? data.jobs
-        : [];
-
-
-    // ========================================
-    // FRONTEND LOCATION FILTER
-    // ========================================
-    // This makes the location search work
-    // with the Himalayas response.
-    //
-    // Nigeria-friendly jobs are already filtered
-    // by the backend.
-    //
-    // This additional filter allows the user
-    // to search locations such as:
-    // Nigeria
-    // Worldwide
-    // Africa
-    // United States
-    // United Kingdom
-    // etc.
-    // ========================================
-
-    if (location) {
-
-      const locationSearch =
-        location.toLowerCase();
-
-
-      jobs =
-        jobs.filter(job => {
-
-          const jobLocation =
-            String(
-              job.location || ""
-            ).toLowerCase();
-
-
-          const restrictions =
-            Array.isArray(
-              job.locationRestrictions
-            )
-              ? job.locationRestrictions
-              : [];
-
-
-          const restrictionText =
-            restrictions
-              .map(item => {
-
-                return [
-                  item?.name,
-                  item?.alpha2,
-                  item?.slug
-                ]
-                  .filter(Boolean)
-                  .join(" ");
-
-              })
-              .join(" ")
-              .toLowerCase();
-
-
-          const company =
-            String(
-              job.company || ""
-            ).toLowerCase();
-
-
-          const description =
-            String(
-              job.description || ""
-            ).toLowerCase();
-
-
-          return (
-            jobLocation.includes(
-              locationSearch
-            ) ||
-
-            restrictionText.includes(
-              locationSearch
-            ) ||
-
-            company.includes(
-              locationSearch
-            ) ||
-
-            description.includes(
-              locationSearch
-            )
-          );
-
-        });
-
-    }
-
-
-    // ========================================
-    // DISPLAY JOBS
-    // ========================================
-
-    displayJobs(jobs);
+    // Display
+    displayJobs(
+      jobs
+    );
 
 
   } catch (error) {
@@ -274,55 +440,12 @@ async function loadJobs() {
     );
 
 
-    // ========================================
-    // SHOW ERROR
-    // ========================================
-
-    if (jobsContainer) {
-
-      jobsContainer.innerHTML = `
-
-        <div class="empty-state">
-
-          <div>⚠️</div>
-
-          <h3>
-            Unable to load jobs
-          </h3>
-
-          <p>
-            We couldn't connect to the job server.
-            Please try again.
-          </p>
-
-          <button
-            class="apply-btn"
-            onclick="loadJobs()"
-            style="margin-top:15px;"
-          >
-            Try Again
-          </button>
-
-        </div>
-
-      `;
-
-    }
-
-
-    if (jobCount) {
-
-      jobCount.textContent =
-        "0 jobs";
-
-    }
+    showError(
+      error
+    );
 
 
   } finally {
-
-    // ========================================
-    // HIDE LOADING
-    // ========================================
 
     if (loading) {
 
@@ -338,13 +461,105 @@ async function loadJobs() {
 
 
 // ========================================
+// DISPLAY ERROR
+// ========================================
+
+function showError(
+  error
+) {
+
+  if (jobCount) {
+
+    jobCount.textContent =
+      "0 jobs";
+
+  }
+
+
+  if (!jobsContainer) {
+
+    return;
+
+  }
+
+
+  jobsContainer.innerHTML = `
+
+    <div class="empty-state">
+
+      <div
+        style="
+          font-size:40px;
+          margin-bottom:10px;
+        "
+      >
+        ⚠️
+      </div>
+
+      <h3>
+        Unable to load jobs
+      </h3>
+
+      <p>
+        We couldn't connect to the job server.
+        Please try again.
+      </p>
+
+      <button
+        class="apply-btn"
+        id="retryJobsBtn"
+        type="button"
+        style="margin-top:15px;"
+      >
+        Try Again
+      </button>
+
+      <p
+        style="
+          margin-top:12px;
+          font-size:12px;
+          opacity:0.6;
+        "
+      >
+        Server:
+        ${escapeHTML(API_URL)}
+      </p>
+
+    </div>
+
+  `;
+
+
+  const retryButton =
+    document.getElementById(
+      "retryJobsBtn"
+    );
+
+
+  if (retryButton) {
+
+    retryButton.addEventListener(
+      "click",
+      loadJobs
+    );
+
+  }
+
+}
+
+
+// ========================================
 // DISPLAY JOBS
 // ========================================
 
-function displayJobs(jobList) {
+function displayJobs(
+  jobList
+) {
 
   if (!jobsContainer) {
+
     return;
+
   }
 
 
@@ -352,7 +567,7 @@ function displayJobs(jobList) {
 
 
   // ========================================
-  // JOB COUNT
+  // COUNT
   // ========================================
 
   if (jobCount) {
@@ -381,11 +596,39 @@ function displayJobs(jobList) {
 
     }
 
+
+    jobsContainer.innerHTML = `
+
+      <div class="empty-state">
+
+        <div
+          style="
+            font-size:40px;
+            margin-bottom:10px;
+          "
+        >
+          🔎
+        </div>
+
+        <h3>
+          No jobs found
+        </h3>
+
+        <p>
+          Try another search or location.
+        </p>
+
+      </div>
+
+    `;
+
+
     return;
 
   }
 
 
+  // Hide empty state
   if (emptyState) {
 
     emptyState.classList.add(
@@ -399,225 +642,291 @@ function displayJobs(jobList) {
   // CREATE JOB CARDS
   // ========================================
 
-  jobList.forEach(job => {
+  jobList.forEach(
+    job => {
 
-    const card =
-      document.createElement(
-        "div"
-      );
-
-
-    card.className =
-      "job-card";
+      const card =
+        document.createElement(
+          "div"
+        );
 
 
-    // ========================================
-    // JOB DATA
-    // ========================================
-
-    const title =
-      job.title ||
-      "Job Opportunity";
+      card.className =
+        "job-card";
 
 
-    const company =
-      job.company ||
-      "Company";
+      // ========================================
+      // JOB INFORMATION
+      // ========================================
+
+      const title =
+        job.title ||
+        "Job Opportunity";
 
 
-    const location =
-      job.location ||
-      "Worldwide";
+      const company =
+        job.company ||
+        "Company";
 
 
-    const type =
-      job.contract_type ||
-      job.contract_time ||
-      job.employmentType ||
-      "Full-time";
+      const location =
+        job.location ||
+        "Worldwide";
 
 
-    // ========================================
-    // SALARY
-    // ========================================
-
-    const salary =
-      formatSalary(job);
-
-
-    // ========================================
-    // DESCRIPTION
-    // ========================================
-
-    const description =
-      cleanDescription(
-        job.description ||
-        job.excerpt ||
-        ""
-      );
+      const type =
+        job.employmentType ||
+        job.contract_type ||
+        job.contract_time ||
+        "Full Time";
 
 
-    // ========================================
-    // APPLICATION URL
-    // ========================================
-
-    const applicationURL =
-      safeURL(
-        job.url ||
-        job.applicationLink
-      );
+      const salary =
+        formatSalary(
+          job
+        );
 
 
-    // ========================================
-    // JOB CARD
-    // ========================================
+      // ========================================
+      // DESCRIPTION
+      // ========================================
 
-    card.innerHTML = `
+      const description =
+        cleanDescription(
+          job.description ||
+          job.excerpt ||
+          ""
+        );
 
-      <div class="job-info">
 
-        <div class="job-company">
+      // ========================================
+      // APPLICATION URL
+      //
+      // IMPORTANT:
+      // Himalayas backend uses applicationUrl
+      // ========================================
 
-          ${escapeHTML(company)}
+      const applicationURL =
+        safeURL(
+          job.applicationUrl ||
+          job.applicationLink ||
+          job.url
+        );
+
+
+      // ========================================
+      // REMOTE LABEL
+      // ========================================
+
+      const remoteLabel =
+        job.remoteLabel ||
+        "100% Remote";
+
+
+      // ========================================
+      // ELIGIBILITY
+      // ========================================
+
+      const eligibility =
+        job.eligibility ||
+        "Nigerians can apply from Nigeria";
+
+
+      // ========================================
+      // SALARY DISPLAY
+      // ========================================
+
+      const salaryHTML =
+        salary !==
+        "Salary not specified"
+
+          ? `
+            <span class="tag">
+              💰
+              ${escapeHTML(salary)}
+            </span>
+          `
+
+          : `
+
+            <span class="tag">
+              💰
+              Salary not specified
+            </span>
+
+          `;
+
+
+      // ========================================
+      // JOB CARD HTML
+      // ========================================
+
+      card.innerHTML = `
+
+        <div class="job-info">
+
+          <div
+            class="job-company"
+          >
+            ${escapeHTML(company)}
+          </div>
+
+
+          <h3
+            class="job-title"
+          >
+            ${escapeHTML(title)}
+          </h3>
+
+
+          <div
+            class="job-meta"
+          >
+
+            <span
+              class="tag"
+            >
+              🏠
+              ${escapeHTML(remoteLabel)}
+            </span>
+
+
+            <span
+              class="tag"
+            >
+              📍
+              ${escapeHTML(location)}
+            </span>
+
+
+            <span
+              class="tag"
+            >
+              💼
+              ${escapeHTML(type)}
+            </span>
+
+
+            ${salaryHTML}
+
+          </div>
+
+
+          <div
+            style="
+              margin-top:10px;
+              font-size:13px;
+              font-weight:600;
+            "
+          >
+            🇳🇬
+            ${escapeHTML(eligibility)}
+          </div>
+
+
+          <p
+            class="job-description"
+          >
+            ${escapeHTML(
+              description.substring(
+                0,
+                350
+              )
+            )}
+
+            ${
+              description.length > 350
+                ? "..."
+                : ""
+            }
+
+          </p>
+
+
+          <div
+            class="job-source"
+            style="
+              margin-top:8px;
+              font-size:12px;
+              opacity:0.7;
+            "
+          >
+
+            Source:
+            ${escapeHTML(
+              job.source ||
+              "Himalayas"
+            )}
+
+          </div>
 
         </div>
 
 
-        <h3 class="job-title">
-
-          ${escapeHTML(title)}
-
-        </h3>
-
-
-        <div class="job-meta">
-
-          <span class="tag">
-
-            📍
-
-            ${escapeHTML(location)}
-
-          </span>
-
-
-          <span class="tag">
-
-            💼
-
-            ${escapeHTML(type)}
-
-          </span>
-
-
-          <span class="tag">
-
-            💰
-
-            ${escapeHTML(salary)}
-
-          </span>
-
-        </div>
-
-
-        <p class="job-description">
-
-          ${escapeHTML(
-            description.substring(
-              0,
-              350
-            )
-          )}
-
+        <a
+          href="${applicationURL}"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="apply-btn"
           ${
-            description.length > 350
-              ? "..."
+            applicationURL === "#"
+              ? 'aria-disabled="true"'
               : ""
           }
-
-        </p>
-
-
-        <div
-          class="job-source"
-          style="margin-top:8px;font-size:12px;opacity:0.7;"
         >
 
-          Source:
-          ${escapeHTML(
-            job.source ||
-            "Himalayas"
-          )}
+          Apply Now →
 
-        </div>
+        </a>
 
-      </div>
+      `;
 
 
-      <a
-        href="${applicationURL}"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="apply-btn"
-        ${
-          applicationURL === "#"
-            ? 'aria-disabled="true"'
-            : ""
+      // ========================================
+      // INVALID APPLICATION URL
+      // ========================================
+
+      if (
+        applicationURL === "#"
+      ) {
+
+        const applyButton =
+          card.querySelector(
+            ".apply-btn"
+          );
+
+
+        if (applyButton) {
+
+          applyButton.addEventListener(
+            "click",
+            event => {
+
+              event.preventDefault();
+
+
+              alert(
+                "Application link is not available for this job."
+              );
+
+            }
+          );
+
         }
-      >
-
-        Apply Now →
-
-      </a>
-
-    `;
-
-
-    // ========================================
-    // DISABLE INVALID APPLICATION LINK
-    // ========================================
-
-    if (
-      applicationURL === "#"
-    ) {
-
-      const applyButton =
-        card.querySelector(
-          ".apply-btn"
-        );
-
-
-      if (applyButton) {
-
-        applyButton.addEventListener(
-          "click",
-          event => {
-
-            event.preventDefault();
-
-
-            alert(
-              "Application link is not available for this job."
-            );
-
-          }
-        );
 
       }
 
+
+      // ========================================
+      // ADD CARD
+      // ========================================
+
+      jobsContainer.appendChild(
+        card
+      );
+
     }
-
-
-    // ========================================
-    // ADD CARD TO PAGE
-    // ========================================
-
-    jobsContainer.appendChild(
-      card
-    );
-
-  });
+  );
 
 }
 
@@ -626,25 +935,33 @@ function displayJobs(jobList) {
 // FORMAT SALARY
 // ========================================
 
-function formatSalary(job) {
+function formatSalary(
+  job
+) {
 
-  // If backend already provides
-  // a formatted salary
-  if (job.salary) {
+  // Backend formatted salary
+  if (
+    job.salary &&
+    String(
+      job.salary
+    ).trim()
+  ) {
 
     return String(
       job.salary
-    );
+    ).trim();
 
   }
 
 
   const min =
-    job.salary_min;
+    job.salary_min ??
+    job.salaryMin;
 
 
   const max =
-    job.salary_max;
+    job.salary_max ??
+    job.salaryMax;
 
 
   const currency =
@@ -654,13 +971,15 @@ function formatSalary(job) {
 
   const period =
     job.salary_period ||
+    job.salaryPeriod ||
     "";
 
 
-  // No salary information
+  // No salary
   if (
     min === null ||
-    min === undefined
+    min === undefined ||
+    min === ""
   ) {
 
     return "Salary not specified";
@@ -668,16 +987,16 @@ function formatSalary(job) {
   }
 
 
-  // ========================================
-  // FORMAT NUMBERS
-  // ========================================
-
   const formattedMin =
-    formatNumber(min);
+    formatNumber(
+      min
+    );
 
 
   const formattedMax =
-    formatNumber(max);
+    formatNumber(
+      max
+    );
 
 
   let salaryText =
@@ -701,10 +1020,6 @@ function formatSalary(job) {
   }
 
 
-  // ========================================
-  // ADD SALARY PERIOD
-  // ========================================
-
   if (period) {
 
     salaryText +=
@@ -722,7 +1037,9 @@ function formatSalary(job) {
 // FORMAT NUMBER
 // ========================================
 
-function formatNumber(value) {
+function formatNumber(
+  value
+) {
 
   const number =
     Number(value);
@@ -761,7 +1078,7 @@ if (searchBtn) {
 
 
 // ========================================
-// SEARCH INPUT - ENTER KEY
+// SEARCH ENTER KEY
 // ========================================
 
 if (searchInput) {
@@ -785,7 +1102,7 @@ if (searchInput) {
 
 
 // ========================================
-// LOCATION INPUT - ENTER KEY
+// LOCATION ENTER KEY
 // ========================================
 
 if (locationInput) {
@@ -809,68 +1126,60 @@ if (locationInput) {
 
 
 // ========================================
-// FILTER BUTTONS
+// QUICK FILTER BUTTONS
 // ========================================
 
 document
   .querySelectorAll(
     ".quick-btn"
   )
-  .forEach(button => {
+  .forEach(
+    button => {
 
-    button.addEventListener(
-      "click",
-      () => {
+      button.addEventListener(
+        "click",
+        () => {
 
-        // ========================================
-        // REMOVE ACTIVE FROM OTHER BUTTONS
-        // ========================================
+          // Remove active
+          document
+            .querySelectorAll(
+              ".quick-btn"
+            )
+            .forEach(
+              btn => {
 
-        document
-          .querySelectorAll(
-            ".quick-btn"
-          )
-          .forEach(btn => {
+                btn.classList.remove(
+                  "active"
+                );
 
-            btn.classList.remove(
-              "active"
+              }
             );
 
-          });
+
+          // Activate selected
+          button.classList.add(
+            "active"
+          );
 
 
-        // ========================================
-        // ACTIVATE CLICKED BUTTON
-        // ========================================
-
-        button.classList.add(
-          "active"
-        );
+          // Get filter
+          currentFilter =
+            button.dataset.type ||
+            "all";
 
 
-        // ========================================
-        // GET FILTER
-        // ========================================
+          // Reload
+          loadJobs();
 
-        currentFilter =
-          button.dataset.type ||
-          "all";
+        }
+      );
 
-
-        // ========================================
-        // LOAD FILTERED JOBS
-        // ========================================
-
-        loadJobs();
-
-      }
-    );
-
-  });
+    }
+  );
 
 
 // ========================================
-// CLEAN JOB DESCRIPTION
+// CLEAN DESCRIPTION
 // ========================================
 
 function cleanDescription(
@@ -942,7 +1251,7 @@ function escapeHTML(
 
 
 // ========================================
-// SAFE APPLICATION URL
+// SAFE URL
 // ========================================
 
 function safeURL(
@@ -959,12 +1268,15 @@ function safeURL(
   try {
 
     const parsed =
-      new URL(url);
+      new URL(
+        String(url)
+      );
 
 
     if (
       parsed.protocol ===
         "http:" ||
+
       parsed.protocol ===
         "https:"
     ) {
@@ -986,7 +1298,22 @@ function safeURL(
 
 
 // ========================================
-// LOAD JOBS WHEN WEBSITE OPENS
+// START
 // ========================================
+
+console.log(
+  "JobFinder frontend started."
+);
+
+console.log(
+  "Backend:",
+  API_URL
+);
+
+console.log(
+  "Endpoint:",
+  `${API_URL}/api/jobs/remote`
+);
+
 
 loadJobs();
