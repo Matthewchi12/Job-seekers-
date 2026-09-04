@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobFinder - Find Your Next Job</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+  <header class="header">
+    <div class="logo">Job<span>Finder</span></div>
+
+    <nav>
+      <a href="#jobs">Jobs</a>
+      <a href="#remote">Remote</a>
+      <a href="#nigeria">Nigeria</a>
+    </nav>
+  </header>
+
+  <main>
+
+    <section class="hero">
+      <div class="hero-content">
+        <p class="small-title">FIND YOUR NEXT OPPORTUNITY</p>
+
+        <h1>Find jobs that<br><span>move you forward.</span></h1>
+
+        <p class="hero-text">
+          Search thousands of jobs in Nigeria and around the world,
+          including remote opportunities.
+        </p>
+
+        <div class="search-box">
+
+          <div class="input-group">
+            <span>🔎</span>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="Job title, keyword or company"
+            >
+          </div>
+
+          <div class="input-group">
+            <span>📍</span>
+            <input
+              type="text"
+              id="locationInput"
+              placeholder="Location"
+            >
+          </div>
+
+          <button id="searchBtn">Search Jobs</button>
+
+        </div>
+      </div>
+    </section>
+
+
+    <section class="quick-section">
+
+      <button class="quick-btn active" data-type="all">
+        All Jobs
+      </button>
+
+      <button class="quick-btn" data-type="remote">
+        🌍 Remote
+      </button>
+
+      <button class="quick-btn" data-type="nigeria">
+        🇳🇬 Nigeria
+      </button>
+
+      <button class="quick-btn" data-type="international">
+        🌎 International
+      </button>
+
+    </section>
+
+
+    <section class="jobs-section" id="jobs">
+
+      <div class="section-heading">
+        <div>
+          <p class="section-label">LATEST OPPORTUNITIES</p>
+          <h2>Latest Jobs</h2>
+        </div>
+
+        <span id="jobCount">0 jobs</span>
+      </div>
+
+
+      <div id="loading" class="loading">
+        Loading jobs...
+      </div>
+
+
+      <div id="jobsContainer" class="jobs-container"></div>
+
+
+      <div id="emptyState" class="empty-state hidden">
+        <div>🔍</div>
+        <h3>No jobs found</h3>
+        <p>Try another keyword or location.</p>
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <footer>
+    <div class="footer-logo">JobFinder</div>
+
+    <p>
+      Find opportunities in Nigeria and around the world.
+    </p>
+
+    <p class="copyright">
+      © 2026 JobFinder. All rights reserved.
+    </p>
+  </footer>
+
+
+  <script src="script.js"></script>
+
+</body>
+</html>
